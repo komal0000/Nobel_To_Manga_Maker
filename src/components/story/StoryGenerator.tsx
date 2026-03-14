@@ -1,0 +1,223 @@
+'use client';
+
+import { useState } from 'react';
+import { useMangaStore } from '@/lib/store';
+import { Button } from '@/components/ui/Button';
+import { StoryOutline, StoryScene } from '@/lib/types';
+import { v4 as uuidv4 } from 'uuid';
+
+export function StoryGenerator() {
+  const currentProject = useMangaStore(s => s.currentProject);
+  const updateStoryOutline = useMangaStore(s => s.updateStoryOutline);
+  const addToast = useMangaStore(s => s.addToast);
+  
+  const [expandedScene, setExpandedScene] = useState<string | null>(null);
+
+  if (!currentProject) return null;
+
+  const outline = currentProject.storyOutline;
+
+  const handleInitOutline = () => {
+    updateStoryOutline({
+      title: currentProject.title,
+      genre: currentProject.genre,
+      scenes: []
+    });
+  };
+
+  const clearOutline = () => {
+    if (confirm('Are you sure you want to clear the entire story script?')) {
+      updateStoryOutline(null);
+    }
+  };
+
+  const handleAddScene = () => {
+    if (!outline) return;
+    const newScene: StoryScene = {
+      id: uuidv4(),
+      title: `Scene ${outline.scenes.length + 1}`,
+      description: '',
+      dialogue: [],
+      emotion: 'neutral',
+      actionType: 'establishing'
+    };
+    updateStoryOutline({
+      ...outline,
+      scenes: [...outline.scenes, newScene]
+    });
+    setExpandedScene(newScene.id);
+  };
+
+  const updateScene = (id: string, updates: Partial<StoryScene>) => {
+    if (!outline) return;
+    updateStoryOutline({
+      ...outline,
+      scenes: outline.scenes.map(s => s.id === id ? { ...s, ...updates } : s)
+    });
+  };
+
+  const deleteScene = (id: string) => {
+    if (!outline) return;
+    updateStoryOutline({
+      ...outline,
+      scenes: outline.scenes.filter(s => s.id !== id)
+    });
+  };
+
+  const handleCopyPrompt = (scene: StoryScene) => {
+    const fullPrompt = `[${scene.actionType} | ${scene.emotion}] ${scene.description}`;
+    navigator.clipboard.writeText(fullPrompt);
+    addToast('Scene prompt copied to clipboard!', 'info');
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b border-zinc-800 space-y-4 shrink-0 flex items-center justify-between">
+        <div>
+          <h4 className="text-sm font-bold text-white">📝 Story Script</h4>
+          <p className="text-xs text-zinc-500">Write your own story scenes manually</p>
+        </div>
+        {outline && (
+          <Button variant="ghost" size="sm" onClick={clearOutline} className="text-red-400 hover:text-red-300">
+            Clear
+          </Button>
+        )}
+      </div>
+
+      <div className="p-4 flex-1 overflow-y-auto">
+        {!outline ? (
+           <div className="h-full flex flex-col items-center justify-center text-center px-4">
+             <span className="text-4xl mb-4">📓</span>
+             <p className="text-sm text-zinc-500 mb-4">
+               Start drafting your story manually. Break it down into scenes to use as prompts for generating panels.
+             </p>
+             <Button onClick={handleInitOutline}>Initialize Story Script</Button>
+           </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <input 
+                type="text" 
+                value={outline.title} 
+                onChange={e => updateStoryOutline({...outline, title: e.target.value})}
+                className="w-full bg-transparent text-lg font-black text-white focus:outline-none border-b border-transparent focus:border-violet-500 pb-1"
+                placeholder="Story Title"
+              />
+              <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1">
+                {outline.genre} · {outline.scenes.length} Scenes
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              {outline.scenes.map((scene, idx) => (
+                <div key={scene.id} className="bg-zinc-800 border border-zinc-700 rounded-xl overflow-hidden">
+                  <div className="flex bg-zinc-750 border-b border-zinc-700/50">
+                    <button
+                      onClick={() => setExpandedScene(expandedScene === scene.id ? null : scene.id)}
+                      className="flex-1 px-4 py-3 flex items-center justify-between hover:bg-zinc-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="w-5 h-5 rounded-full bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-bold shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="text-sm font-bold text-white max-w-[150px] truncate text-left">
+                          {scene.title || `Scene ${idx + 1}`}
+                        </span>
+                      </div>
+                      <span className="text-zinc-500 text-sm">
+                        {expandedScene === scene.id ? '▼' : '▶'}
+                      </span>
+                    </button>
+                    <button 
+                      onClick={() => deleteScene(scene.id)}
+                      className="px-3 text-zinc-500 hover:text-red-400 hover:bg-zinc-700 transition-colors"
+                      title="Delete Scene"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  {expandedScene === scene.id && (
+                    <div className="px-4 pb-4 pt-3 space-y-4">
+                      <div>
+                        <label className="text-xs font-bold text-zinc-500 uppercase">Scene Title</label>
+                        <input
+                          type="text"
+                          value={scene.title}
+                          onChange={(e) => updateScene(scene.id, { title: e.target.value })}
+                          className="w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          placeholder="e.g. The Awakening"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-zinc-500 uppercase">Description (Image Prompt)</label>
+                        <textarea
+                          value={scene.description}
+                          onChange={(e) => updateScene(scene.id, { description: e.target.value })}
+                          className="w-full mt-1 h-20 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          placeholder="Describe what happens in this scene..."
+                        />
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="text-xs font-bold text-zinc-500 uppercase">Mood</label>
+                          <input
+                            type="text"
+                            value={scene.emotion}
+                            onChange={(e) => updateScene(scene.id, { emotion: e.target.value })}
+                            className="w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            placeholder="e.g. intense"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs font-bold text-zinc-500 uppercase">Action</label>
+                          <input
+                            type="text"
+                            value={scene.actionType}
+                            onChange={(e) => updateScene(scene.id, { actionType: e.target.value })}
+                            className="w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            placeholder="e.g. combat"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="text-xs font-bold text-zinc-500 uppercase">Dialogue</label>
+                        <textarea
+                          value={scene.dialogue.join('\n')}
+                          onChange={(e) => updateScene(scene.id, { dialogue: e.target.value.split('\n') })}
+                          className="w-full mt-1 h-20 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          placeholder="Character A: Hello!&#10;Character B: Oh hi!"
+                        />
+                        <p className="text-[10px] text-zinc-500 mt-1">Put each line of dialogue on a new line.</p>
+                      </div>
+                      
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="w-full mt-2"
+                        onClick={() => handleCopyPrompt(scene)}
+                      >
+                        📋 Copy Prompt to Clipboard
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <Button
+              variant="secondary"
+              onClick={handleAddScene}
+              className="w-full border-dashed border-2 border-zinc-700 hover:border-violet-500 hover:text-white"
+            >
+              + Add New Scene
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

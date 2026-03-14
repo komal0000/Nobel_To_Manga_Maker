@@ -1,26 +1,178 @@
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --sidebar-bg: #18181b;
+  --panel-border: #3f3f46;
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-glow: rgba(139, 92, 246, 0.3);
+  --success: #22c55e;
+  --error: #ef4444;
+  --info: #3b82f6;
+  --surface: #27272a;
+  --surface-hover: #3f3f46;
+  --muted: #a1a1aa;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-sidebar: var(--sidebar-bg);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-muted: var(--muted);
+  --color-panel-border: var(--panel-border);
+  --font-sans: 'Inter', sans-serif;
+  --font-manga: 'Bangers', cursive;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--panel-border) transparent;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+}
+
+/* Panel canvas page */
+.manga-page {
+  background: #ffffff;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s ease;
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* Speech bubble styles */
+.bubble-speech {
+  background: white;
+  border: 2px solid black;
+  border-radius: 50%;
+  color: black;
+  font-family: 'Bangers', cursive;
+}
+
+.bubble-thought {
+  background: white;
+  border: 2px solid black;
+  border-radius: 50%;
+  color: black;
+  font-family: 'Bangers', cursive;
+  filter: url(#cloud-filter);
+}
+
+.bubble-narration {
+  background: #1a1a1a;
+  border: 1px solid #555;
+  color: white;
+  font-family: 'Inter', sans-serif;
+  font-style: italic;
+}
+
+.bubble-shout {
+  background: white;
+  border: 3px solid black;
+  color: black;
+  font-family: 'Bangers', cursive;
+  font-weight: bold;
+  clip-path: polygon(
+    50% 0%, 61% 15%, 98% 5%, 78% 27%, 100% 50%,
+    80% 62%, 95% 95%, 62% 78%, 50% 100%,
+    38% 78%, 5% 95%, 20% 62%, 0% 50%,
+    22% 27%, 2% 5%, 39% 15%
+  );
+}
+
+/* SFX text styling */
+.sfx-text {
+  font-family: 'Bangers', cursive;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  -webkit-text-stroke: 3px black;
+  paint-order: stroke fill;
+  user-select: none;
+}
+
+/* Floating toolbar */
+.floating-toolbar {
+  backdrop-filter: blur(12px);
+  background: rgba(24, 24, 27, 0.9);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Toast animations */
+@keyframes toast-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toast-out {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+.toast-enter { animation: toast-in 0.3s ease-out; }
+.toast-exit { animation: toast-out 0.3s ease-in; }
+
+/* Panel hover effects */
+.panel-slot {
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.panel-slot:hover {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.panel-slot.selected {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 20px var(--accent-glow);
+}
+
+/* Gradient accents */
+.gradient-accent {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Tab active state */
+.tab-active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Smooth sidebar transitions */
+.sidebar-section {
+  transition: all 0.2s ease;
+}
+
+.sidebar-section:hover {
+  background: var(--surface);
 }
