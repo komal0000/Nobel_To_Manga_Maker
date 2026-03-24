@@ -3,10 +3,7 @@
 export type BubbleType = 'speech' | 'thought' | 'narration' | 'shout';
 export type Genre = 'action' | 'romance' | 'horror' | 'fantasy' | 'comedy';
 export type StoryLength = 'short' | 'medium' | 'long';
-export type ImageModel =
-  | 'gemini-3.1-flash-image-preview'   // Nano Banana 2 — fast, high quality (DEFAULT)
-  | 'gemini-3-pro-image-preview'       // Nano Banana Pro — best quality
-  | 'gemini-2.5-flash-image-preview';  // Nano Banana — balanced
+export type ImageModel = 'google/gemini-2.5-flash-image-preview' | 'google/veo-3.1';
 
 export type ExportFormat = 'pdf' | 'png' | 'webtoon';
 

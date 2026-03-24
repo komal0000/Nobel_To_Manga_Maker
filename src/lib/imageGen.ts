@@ -1,52 +1,74 @@
 /**
  * lib/imageGen.ts
- * Single file wrapping all Puter.js image generation calls.
- * Swap model or provider here without touching the rest of the app.
+ * Single file wrapping all image generation calls.
+ * The client talks to a server route so provider secrets stay off the browser.
  */
 
 import { ImageModel } from './types';
 
-/** Declare the global puter object injected via CDN script */
-declare global {
-  interface Window {
-    puter: {
-      ai: {
-        txt2img: (
-          prompt: string,
-          options?: {
-            model?: string;
-            input_image?: string;
-            input_image_mime_type?: string;
-          }
-        ) => Promise<HTMLImageElement>;
-      };
-    };
+interface GenerateImageRequest {
+  prompt: string;
+  model?: ImageModel;
+  inputImage?: string;
+  inputImageMimeType?: string;
+}
+
+async function requestGeneratedImage({
+  prompt,
+  model = 'google/gemini-2.5-flash-image-preview',
+  inputImage,
+  inputImageMimeType,
+}: GenerateImageRequest): Promise<string> {
+  const response = await fetch('/api/generate-image', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      model,
+      inputImage,
+      inputImageMimeType,
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Image generation failed');
   }
+  if (!payload?.imageUrl) {
+    throw new Error('Image generation did not return an image');
+  }
+
+  return payload.imageUrl;
 }
 
 /**
- * Generate a manga-style panel image using Puter.js txt2img.
+ * Generate a manga-style panel image.
  * Appends manga-specific style suffixes to ensure consistent B&W ink art output.
  */
 export async function generateMangaPanel(
   prompt: string,
-  model: ImageModel = 'gemini-3.1-flash-image-preview'
-): Promise<HTMLImageElement> {
+  model: ImageModel = 'google/gemini-3.1-flash-image-preview'
+): Promise<string> {
   const mangaPrompt = `${prompt}, manga style, black and white, ink line art, screen tones, dynamic composition, anime comic panel`;
-  const negativeHint = `no color, no photorealism, no 3d render, no watermark`;
+  const negativeHint = 'no color, no photorealism, no 3d render, no watermark';
 
-  return await window.puter.ai.txt2img(`${mangaPrompt}. Avoid: ${negativeHint}`, { model });
+  return requestGeneratedImage({
+    prompt: `${mangaPrompt}. Avoid: ${negativeHint}`,
+    model,
+  });
 }
 
 /**
- * Generate a character portrait with the Pro model for best quality and consistency.
+ * Generate a character portrait.
  */
 export async function generateCharacterPortrait(
   characterDescription: string,
-  model: ImageModel = 'gemini-3-pro-image-preview'
-): Promise<HTMLImageElement> {
+  model: ImageModel = 'google/gemini-3.1-flash-image-preview'
+): Promise<string> {
   const prompt = `Manga character portrait: ${characterDescription}, black and white, ink style, clean linework, expressive face, bust shot`;
-  return await window.puter.ai.txt2img(prompt, { model });
+  return requestGeneratedImage({ prompt, model });
 }
 
 /**
@@ -54,10 +76,10 @@ export async function generateCharacterPortrait(
  */
 export async function generateBackground(
   scene: string,
-  model: ImageModel = 'gemini-3.1-flash-image-preview'
-): Promise<HTMLImageElement> {
+  model: ImageModel = 'google/gemini-3.1-flash-image-preview'
+): Promise<string> {
   const prompt = `Manga background: ${scene}, detailed environment, black and white ink, perspective lines, no characters`;
-  return await window.puter.ai.txt2img(prompt, { model });
+  return requestGeneratedImage({ prompt, model });
 }
 
 /**
@@ -67,20 +89,13 @@ export async function generatePanelVariation(
   prompt: string,
   baseImageBase64: string,
   mimeType: string = 'image/png'
-): Promise<HTMLImageElement> {
-  return await window.puter.ai.txt2img(prompt, {
-    model: 'gemini-2.5-flash-image-preview',
-    input_image: baseImageBase64,
-    input_image_mime_type: mimeType,
+): Promise<string> {
+  return requestGeneratedImage({
+    prompt,
+    model: 'google/gemini-3.1-flash-image-preview',
+    inputImage: baseImageBase64,
+    inputImageMimeType: mimeType,
   });
-}
-
-/**
- * Extract displayable URL from a Puter.js HTMLImageElement.
- * Returns the src which is typically a data URL or blob URL.
- */
-export function puterImageToUrl(imgEl: HTMLImageElement): string {
-  return imgEl.src;
 }
 
 /**

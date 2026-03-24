@@ -33,7 +33,7 @@ export function BackgroundGenerator() {
     setGenerating(true);
     const url = await generateBg(prompt);
     if (url) {
-      setPanelImage(selectedPanelId, url, prompt, 'gemini-3.1-flash-image-preview');
+      setPanelImage(selectedPanelId, url, prompt, 'google/gemini-2.5-flash-image-preview');
     }
     setGenerating(false);
   };

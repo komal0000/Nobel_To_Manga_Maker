@@ -1,11 +1,11 @@
 'use client';
 /**
  * hooks/useGenerate.ts
- * Wraps Puter.js image generation with loading state, error handling, and toast notifications.
+ * Wraps image generation with loading state, error handling, and toast notifications.
  */
 
 import { useState, useCallback } from 'react';
-import { generateMangaPanel, generateCharacterPortrait, generateBackground, generatePanelVariation, puterImageToUrl } from '@/lib/imageGen';
+import { generateMangaPanel, generateCharacterPortrait, generateBackground, generatePanelVariation } from '@/lib/imageGen';
 import { useMangaStore } from '@/lib/store';
 import { ImageModel } from '@/lib/types';
 
@@ -18,8 +18,7 @@ export function useGenerate() {
     setIsGenerating(true);
     setError(null);
     try {
-      const img = await generateMangaPanel(prompt, model);
-      const url = puterImageToUrl(img);
+      const url = await generateMangaPanel(prompt, model);
       addToast('Panel generated successfully!', 'success');
       return url;
     } catch (err) {
@@ -36,8 +35,7 @@ export function useGenerate() {
     setIsGenerating(true);
     setError(null);
     try {
-      const img = await generateCharacterPortrait(description, model);
-      const url = puterImageToUrl(img);
+      const url = await generateCharacterPortrait(description, model);
       addToast('Portrait generated!', 'success');
       return url;
     } catch (err) {
@@ -54,8 +52,7 @@ export function useGenerate() {
     setIsGenerating(true);
     setError(null);
     try {
-      const img = await generateBackground(scene, model);
-      const url = puterImageToUrl(img);
+      const url = await generateBackground(scene, model);
       addToast('Background generated!', 'success');
       return url;
     } catch (err) {
@@ -72,8 +69,7 @@ export function useGenerate() {
     setIsGenerating(true);
     setError(null);
     try {
-      const img = await generatePanelVariation(prompt, base64, mime);
-      const url = puterImageToUrl(img);
+      const url = await generatePanelVariation(prompt, base64, mime);
       addToast('Variation generated!', 'success');
       return url;
     } catch (err) {

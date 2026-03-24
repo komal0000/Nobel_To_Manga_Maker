@@ -14,9 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <script src="https://js.puter.com/v2/" defer></script>
-      </head>
+      <head />
       <body className="antialiased">
         {children}
         <ToastContainer />
