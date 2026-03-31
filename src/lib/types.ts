@@ -3,7 +3,7 @@
 export type BubbleType = 'speech' | 'thought' | 'narration' | 'shout';
 export type Genre = 'action' | 'romance' | 'horror' | 'fantasy' | 'comedy';
 export type StoryLength = 'short' | 'medium' | 'long';
-export type ImageModel = 'google/gemini-2.5-flash-image-preview' | 'google/veo-3.1';
+export type ImageModel = 'google/gemini-2.5-flash-image';
 
 export type ExportFormat = 'pdf' | 'png' | 'webtoon';
 

@@ -26,7 +26,7 @@ export function FloatingToolbar({ panelId, hasImage }: FloatingToolbarProps) {
     setGenerating(true);
     const url = await generatePanel(prompt);
     if (url) {
-      setPanelImage(panelId, url, prompt, 'google/gemini-2.5-flash-image-preview');
+      setPanelImage(panelId, url, prompt, 'google/gemini-2.5-flash-image');
     }
     setGenerating(false);
     setShowPrompt(false);

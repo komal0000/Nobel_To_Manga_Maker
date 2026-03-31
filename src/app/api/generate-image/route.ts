@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_MODEL = 'google/gemini-2.5-flash-image-preview';
+const DEFAULT_MODEL = 'google/gemini-2.5-flash-image';
 
 interface GenerateImageBody {
   prompt?: string;
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            'OpenRouter responded without an image. Use an image-capable model such as google/gemini-3.1-flash-image-preview. google/veo-3.1 is a video-oriented model, not a standard image-generation model.',
+            'OpenRouter responded without an image. Ensure the model google/gemini-2.5-flash-image is used and modalities include image.',
         },
         { status: 502 }
       );

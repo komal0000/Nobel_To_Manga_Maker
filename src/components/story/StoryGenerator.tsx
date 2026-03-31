@@ -12,6 +12,10 @@ export function StoryGenerator() {
   const addToast = useMangaStore(s => s.addToast);
   
   const [expandedScene, setExpandedScene] = useState<string | null>(null);
+  const [aiPremise, setAiPremise] = useState('');
+  const [aiSceneCount, setAiSceneCount] = useState(5);
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
   if (!currentProject) return null;
 
@@ -23,6 +27,48 @@ export function StoryGenerator() {
       genre: currentProject.genre,
       scenes: []
     });
+  };
+
+  const handleGenerateWithAI = async () => {
+    if (!aiPremise.trim()) {
+      addToast('Please enter a story premise.', 'error');
+      return;
+    }
+    setIsGeneratingStory(true);
+    try {
+      const response = await fetch('/api/generate-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          premise: aiPremise,
+          genre: currentProject.genre,
+          title: currentProject.title,
+          sceneCount: aiSceneCount,
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.scenes) {
+        throw new Error(data?.error || 'Story generation failed.');
+      }
+      const newScenes: StoryScene[] = data.scenes.map((s: Omit<StoryScene, 'id'>) => ({
+        ...s,
+        id: uuidv4(),
+      }));
+      const existingOutline = outline;
+      updateStoryOutline({
+        title: currentProject.title,
+        genre: currentProject.genre,
+        scenes: existingOutline ? [...existingOutline.scenes, ...newScenes] : newScenes,
+      });
+      addToast(`Generated ${newScenes.length} scenes with AI!`, 'success');
+      setShowAiPanel(false);
+      setAiPremise('');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Story generation failed.';
+      addToast(msg, 'error');
+    } finally {
+      setIsGeneratingStory(false);
+    }
   };
 
   const clearOutline = () => {
@@ -72,15 +118,55 @@ export function StoryGenerator() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-zinc-800 space-y-4 shrink-0 flex items-center justify-between">
-        <div>
-          <h4 className="text-sm font-bold text-white">📝 Story Script</h4>
-          <p className="text-xs text-zinc-500">Write your own story scenes manually</p>
+      <div className="p-4 border-b border-zinc-800 shrink-0 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-bold text-white">📝 Story Script</h4>
+            <p className="text-xs text-zinc-500">Write manually or generate with AI</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAiPanel(v => !v)}
+              className="px-2.5 py-1.5 text-xs font-medium bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors flex items-center gap-1"
+            >
+              ✨ AI Generate
+            </button>
+            {outline && (
+              <Button variant="ghost" size="sm" onClick={clearOutline} className="text-red-400 hover:text-red-300">
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
-        {outline && (
-          <Button variant="ghost" size="sm" onClick={clearOutline} className="text-red-400 hover:text-red-300">
-            Clear
-          </Button>
+
+        {showAiPanel && (
+          <div className="bg-zinc-800 border border-violet-500/30 rounded-xl p-3 space-y-3">
+            <p className="text-xs font-bold text-violet-400 uppercase tracking-wide">Generate Story with AI</p>
+            <textarea
+              value={aiPremise}
+              onChange={e => setAiPremise(e.target.value)}
+              placeholder="Describe your story premise... e.g. A young warrior discovers an ancient power and must protect her village from a shadow demon."
+              className="w-full h-20 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+            />
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-zinc-400 shrink-0">Scenes:</label>
+              <input
+                type="number"
+                min={2}
+                max={10}
+                value={aiSceneCount}
+                onChange={e => setAiSceneCount(Number(e.target.value))}
+                className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+              <button
+                onClick={handleGenerateWithAI}
+                disabled={isGeneratingStory || !aiPremise.trim()}
+                className="flex-1 py-1.5 text-xs bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-lg transition-colors font-medium"
+              >
+                {isGeneratingStory ? '⏳ Generating...' : '✨ Generate Scenes'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

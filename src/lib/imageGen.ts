@@ -15,7 +15,7 @@ interface GenerateImageRequest {
 
 async function requestGeneratedImage({
   prompt,
-  model = 'google/gemini-2.5-flash-image-preview',
+  model = 'google/gemini-2.5-flash-image',
   inputImage,
   inputImageMimeType,
 }: GenerateImageRequest): Promise<string> {
@@ -49,7 +49,7 @@ async function requestGeneratedImage({
  */
 export async function generateMangaPanel(
   prompt: string,
-  model: ImageModel = 'google/gemini-3.1-flash-image-preview'
+  model: ImageModel = 'google/gemini-2.5-flash-image'
 ): Promise<string> {
   const mangaPrompt = `${prompt}, manga style, black and white, ink line art, screen tones, dynamic composition, anime comic panel`;
   const negativeHint = 'no color, no photorealism, no 3d render, no watermark';
@@ -65,7 +65,7 @@ export async function generateMangaPanel(
  */
 export async function generateCharacterPortrait(
   characterDescription: string,
-  model: ImageModel = 'google/gemini-3.1-flash-image-preview'
+  model: ImageModel = 'google/gemini-2.5-flash-image'
 ): Promise<string> {
   const prompt = `Manga character portrait: ${characterDescription}, black and white, ink style, clean linework, expressive face, bust shot`;
   return requestGeneratedImage({ prompt, model });
@@ -76,7 +76,7 @@ export async function generateCharacterPortrait(
  */
 export async function generateBackground(
   scene: string,
-  model: ImageModel = 'google/gemini-3.1-flash-image-preview'
+  model: ImageModel = 'google/gemini-2.5-flash-image'
 ): Promise<string> {
   const prompt = `Manga background: ${scene}, detailed environment, black and white ink, perspective lines, no characters`;
   return requestGeneratedImage({ prompt, model });
@@ -92,7 +92,7 @@ export async function generatePanelVariation(
 ): Promise<string> {
   return requestGeneratedImage({
     prompt,
-    model: 'google/gemini-3.1-flash-image-preview',
+    model: 'google/gemini-2.5-flash-image',
     inputImage: baseImageBase64,
     inputImageMimeType: mimeType,
   });

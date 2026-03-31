@@ -99,7 +99,7 @@ function createPanelsFromPreset(pageId: string, preset: LayoutPreset): Panel[] {
     position: { ...pos },
     imageUrl: null,
     prompt: '',
-    modelUsed: 'google/gemini-3.1-flash-image-preview' as ImageModel,
+    modelUsed: 'google/gemini-2.5-flash-image' as ImageModel,
     style: { borderWidth: 2, borderColor: '#000000', borderRadius: 0, backgroundColor: '#ffffff' },
     bubbles: [],
     sfxItems: [],
