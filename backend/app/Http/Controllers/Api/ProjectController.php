@@ -24,7 +24,13 @@ class ProjectController extends Controller
 
     public function store(StoreProjectRequest $request): ProjectResource
     {
-        $project = Project::create($this->payload($request->validated()));
+        $validated = $request->validated();
+
+        if (! array_key_exists('characters', $validated)) {
+            $validated['characters'] = [];
+        }
+
+        $project = Project::create($this->payload($validated));
 
         return new ProjectResource($project);
     }

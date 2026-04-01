@@ -1,13 +1,26 @@
 import { NextResponse } from 'next/server';
+import { PDFParse } from 'pdf-parse';
+
+export const runtime = 'nodejs';
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
-const STORY_MODEL = 'google/gemini-2.5-flash-image';
+const STORY_MODEL = 'qwen/qwen3.6-plus-preview:free';
 
 interface GenerateStoryBody {
   premise?: string;
   genre?: string;
   title?: string;
   sceneCount?: number;
+  chapterTitle?: string;
+  chapterText?: string;
+  consistencyNotes?: string;
+  sourceType?: 'premise' | 'pdf';
+  existingScenes?: Array<{
+    title?: string;
+    description?: string;
+    emotion?: string;
+    actionType?: string;
+  }>;
 }
 
 interface StorySceneRaw {
@@ -18,14 +31,80 @@ interface StorySceneRaw {
   actionType: string;
 }
 
+function clampSceneCount(sceneCount?: number): number {
+  return Math.min(Math.max(sceneCount || 5, 2), 10);
+}
+
+function normalizeText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function sanitizePdfText(text: string): string {
+  const lines = text
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(line => {
+      if (!line) return false;
+      if (/^\d+$/.test(line)) return false;
+      if (/^page\s+\d+/i.test(line)) return false;
+      return true;
+    });
+
+  return lines.join('\n').trim();
+}
+
+function buildExistingSceneContext(body: GenerateStoryBody): string {
+  if (!Array.isArray(body.existingScenes) || body.existingScenes.length === 0) {
+    return 'No previous scenes exist yet.';
+  }
+
+  const summary = body.existingScenes
+    .slice(-5)
+    .map((scene, idx) => {
+      const sceneTitle = scene.title || `Scene ${idx + 1}`;
+      const sceneDescription = normalizeText(scene.description || '').slice(0, 180);
+      const emotion = scene.emotion || 'neutral';
+      const actionType = scene.actionType || 'establishing';
+      return `${idx + 1}. ${sceneTitle} | ${emotion}/${actionType} | ${sceneDescription}`;
+    })
+    .join('\n');
+
+  return `Most recent existing scenes (continue naturally from these):\n${summary}`;
+}
+
 function buildStoryPrompt(body: GenerateStoryBody): string {
-  const count = Math.min(Math.max(body.sceneCount || 5, 2), 10);
+  const count = clampSceneCount(body.sceneCount);
+  const sourceMode = body.sourceType === 'pdf' ? 'chapter_pdf' : 'premise';
+  const chapterTitle = body.chapterTitle?.trim() || 'Untitled Chapter';
+  const chapterText = normalizeText(body.chapterText || '').slice(0, 24000);
+  const premise = body.premise?.trim() || 'A hero embarks on an adventure.';
+  const consistencyNotes = body.consistencyNotes?.trim();
+
+  const storySource =
+    sourceMode === 'chapter_pdf'
+      ? `- Source Type: chapter_pdf\n- Chapter Title: ${chapterTitle}\n- Chapter Text:\n"""${chapterText}"""`
+      : `- Source Type: premise\n- Premise: ${premise}`;
+
+  const consistencyBlock = consistencyNotes
+    ? `Additional consistency constraints from user:\n- ${consistencyNotes}`
+    : 'Additional consistency constraints from user:\n- Keep names, appearance, personality, and chronology consistent across all scenes.';
+
   return `You are a manga story writer. Generate a structured manga story outline.
 
 Story details:
 - Title: ${body.title || 'Untitled'}
 - Genre: ${body.genre || 'action'}
-- Premise: ${body.premise || 'A hero embarks on an adventure'}
+${storySource}
+
+${buildExistingSceneContext(body)}
+
+Consistency rules:
+- Keep the same named characters consistent in behavior, role, and appearance details.
+- Preserve cause-and-effect continuity from one scene to the next.
+- Avoid contradictions in setting, power level, injuries, or timeline.
+- Make each scene distinct but narratively connected.
+${consistencyBlock}
 
 Return ONLY valid JSON — no markdown, no explanation. Use this exact shape:
 {
@@ -41,6 +120,93 @@ Return ONLY valid JSON — no markdown, no explanation. Use this exact shape:
 }
 
 Generate exactly ${count} scenes. Make each description vivid and suitable as an image generation prompt for a manga panel.`;
+}
+
+function parseExistingScenes(raw: string): GenerateStoryBody['existingScenes'] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return undefined;
+
+    return parsed.map((scene: unknown) => {
+      const record = scene as Record<string, unknown>;
+      return {
+        title: typeof record.title === 'string' ? record.title : undefined,
+        description: typeof record.description === 'string' ? record.description : undefined,
+        emotion: typeof record.emotion === 'string' ? record.emotion : undefined,
+        actionType: typeof record.actionType === 'string' ? record.actionType : undefined,
+      };
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+async function parseRequestBody(request: Request): Promise<GenerateStoryBody> {
+  const contentType = request.headers.get('content-type') || '';
+
+  if (!contentType.includes('multipart/form-data')) {
+    return (await request.json().catch(() => ({}))) as GenerateStoryBody;
+  }
+
+  const form = await request.formData();
+  const sceneCountRaw = form.get('sceneCount');
+  const existingScenesRaw = form.get('existingScenes');
+
+  const body: GenerateStoryBody = {
+    sourceType: 'pdf',
+    title: typeof form.get('title') === 'string' ? (form.get('title') as string) : undefined,
+    genre: typeof form.get('genre') === 'string' ? (form.get('genre') as string) : undefined,
+    chapterTitle: typeof form.get('chapterTitle') === 'string' ? (form.get('chapterTitle') as string) : undefined,
+    consistencyNotes:
+      typeof form.get('consistencyNotes') === 'string' ? (form.get('consistencyNotes') as string) : undefined,
+    sceneCount:
+      typeof sceneCountRaw === 'string' && sceneCountRaw.trim() ? Number(sceneCountRaw) : undefined,
+    existingScenes:
+      typeof existingScenesRaw === 'string' ? parseExistingScenes(existingScenesRaw) : undefined,
+  };
+
+  const file = form.get('chapterPdf');
+  if (!(file instanceof File)) {
+    throw new Error('Chapter PDF file is required.');
+  }
+
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!isPdf) {
+    throw new Error('Only PDF files are supported for chapter upload.');
+  }
+
+  const parser = new PDFParse({ data: new Uint8Array(await file.arrayBuffer()) });
+
+  try {
+    const textResult = await parser.getText();
+    body.chapterText = sanitizePdfText(textResult.text || '');
+  } finally {
+    await parser.destroy().catch(() => undefined);
+  }
+
+  return body;
+}
+
+function extractRawText(payload: unknown): string {
+  const messageContent = (payload as { choices?: Array<{ message?: { content?: unknown } }> })
+    ?.choices?.[0]?.message?.content;
+
+  if (typeof messageContent === 'string') {
+    return messageContent;
+  }
+
+  if (Array.isArray(messageContent)) {
+    return messageContent
+      .filter(
+        (part): part is { type?: string; text?: string } =>
+          typeof part === 'object' && part !== null && 'type' in part
+      )
+      .filter(part => part.type === 'text' && typeof part.text === 'string')
+      .map(part => part.text as string)
+      .join('\n');
+  }
+
+  return '';
 }
 
 function parseScenes(text: string): StorySceneRaw[] | null {
@@ -72,6 +238,16 @@ function parseScenes(text: string): StorySceneRaw[] | null {
 }
 
 export async function POST(request: Request) {
+  let body: GenerateStoryBody;
+  try {
+    body = await parseRequestBody(request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid request payload.';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  const sourceType = body.sourceType === 'pdf' ? 'pdf' : 'premise';
+
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -80,13 +256,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as GenerateStoryBody;
-  if (!body.premise?.trim()) {
+  if (sourceType === 'pdf' && !body.chapterText) {
+    return NextResponse.json({ error: 'Could not extract text from the uploaded PDF.' }, { status: 400 });
+  }
+
+  if (sourceType === 'premise' && !body.premise?.trim()) {
     return NextResponse.json({ error: 'Premise is required.' }, { status: 400 });
   }
 
   const baseUrl = (process.env.OPENROUTER_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
-  const model = process.env.OPENROUTER_STORY_MODEL || STORY_MODEL;
+  const model = STORY_MODEL;
 
   const upstreamPayload = {
     model,
@@ -122,14 +301,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: upstreamError }, { status: upstreamResponse.status });
     }
 
-    const rawText: string =
-      payload?.choices?.[0]?.message?.content ||
-      (Array.isArray(payload?.choices?.[0]?.message?.content)
-        ? payload.choices[0].message.content
-            .filter((c: { type: string }) => c.type === 'text')
-            .map((c: { text: string }) => c.text)
-            .join('\n')
-        : '');
+    const rawText = extractRawText(payload);
 
     if (!rawText) {
       return NextResponse.json({ error: 'Model returned no text content.' }, { status: 502 });
@@ -143,7 +315,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ scenes, model });
+    return NextResponse.json({ scenes, model, sourceType });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected story generation error.';
     return NextResponse.json({ error: message }, { status: 500 });

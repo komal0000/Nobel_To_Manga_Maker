@@ -9,10 +9,13 @@ function apiBaseUrl() {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const hasBody = init?.body !== undefined;
+
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
       ...(init?.headers || {}),
     },
     cache: 'no-store',

@@ -19,7 +19,7 @@ class StoreProjectRequest extends FormRequest
             'genre' => ['required', 'string', 'max:50'],
             'thumbnailUrl' => ['nullable', 'string', 'max:2048'],
             'pages' => ['required', 'array'],
-            'characters' => ['required', 'array'],
+            'characters' => ['sometimes', 'array'],
             'storyOutline' => ['nullable', 'array'],
             'createdAt' => ['nullable', 'date'],
             'updatedAt' => ['nullable', 'date'],
