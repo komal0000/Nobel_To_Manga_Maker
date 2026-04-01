@@ -5,6 +5,7 @@ const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  serverExternalPackages: ['pdf-parse'],
   turbopack: {
     root: projectRoot,
   },

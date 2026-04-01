@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { PDFParse } from 'pdf-parse';
 
 export const runtime = 'nodejs';
 
@@ -141,6 +140,34 @@ function parseExistingScenes(raw: string): GenerateStoryBody['existingScenes'] {
   }
 }
 
+async function extractTextFromPdfFile(file: File): Promise<string> {
+  const data = new Uint8Array(await file.arrayBuffer());
+  const pdfModule = (await import('pdf-parse')) as {
+    PDFParse?: new (options: { data: Uint8Array }) => {
+      getText: () => Promise<{ text?: string }>;
+      destroy: () => Promise<void>;
+    };
+    default?: (buffer: Uint8Array | Buffer) => Promise<{ text?: string }>;
+  };
+
+  if (typeof pdfModule.PDFParse === 'function') {
+    const parser = new pdfModule.PDFParse({ data });
+    try {
+      const textResult = await parser.getText();
+      return sanitizePdfText(textResult.text || '');
+    } finally {
+      await parser.destroy().catch(() => undefined);
+    }
+  }
+
+  if (typeof pdfModule.default === 'function') {
+    const result = await pdfModule.default(Buffer.from(data));
+    return sanitizePdfText(result?.text || '');
+  }
+
+  throw new Error('Unsupported pdf-parse API shape in current environment.');
+}
+
 async function parseRequestBody(request: Request): Promise<GenerateStoryBody> {
   const contentType = request.headers.get('content-type') || '';
 
@@ -175,14 +202,7 @@ async function parseRequestBody(request: Request): Promise<GenerateStoryBody> {
     throw new Error('Only PDF files are supported for chapter upload.');
   }
 
-  const parser = new PDFParse({ data: new Uint8Array(await file.arrayBuffer()) });
-
-  try {
-    const textResult = await parser.getText();
-    body.chapterText = sanitizePdfText(textResult.text || '');
-  } finally {
-    await parser.destroy().catch(() => undefined);
-  }
+  body.chapterText = await extractTextFromPdfFile(file);
 
   return body;
 }
@@ -258,6 +278,16 @@ export async function POST(request: Request) {
 
   if (sourceType === 'pdf' && !body.chapterText) {
     return NextResponse.json({ error: 'Could not extract text from the uploaded PDF.' }, { status: 400 });
+  }
+
+  if (sourceType === 'pdf' && (body.chapterText?.length || 0) < 40) {
+    return NextResponse.json(
+      {
+        error:
+          'Extracted text is too short. This PDF may be image/scanned-only. Please run OCR first or upload a text-based PDF chapter.',
+      },
+      { status: 422 }
+    );
   }
 
   if (sourceType === 'premise' && !body.premise?.trim()) {
