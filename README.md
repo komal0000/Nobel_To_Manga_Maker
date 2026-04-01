@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nobel To Manga Maker
 
-## Getting Started
+This repository is now organized into separate frontend and backend applications.
 
-First, run the development server:
+## Project Structure
+
+- `frontend/` - Next.js app (UI/editor)
+- `backend/` - Laravel API backend
+
+## Run Frontend
 
 ```bash
+cd frontend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Frontend runs on `http://localhost:3000` by default.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Run Backend
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cd backend
+composer install
+php artisan serve
+```
 
-## Learn More
+Backend runs on `http://127.0.0.1:8000` by default.
 
-To learn more about Next.js, take a look at the following resources:
+## Notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Frontend-specific config files (Next.js, TypeScript, PostCSS, ESLint) are inside `frontend/`.
+- Root-level `.gitignore` now supports nested app folders.
+- Data management is handled by Laravel API endpoints in `backend/` (no Supabase dependency).
+- Set `NEXT_PUBLIC_LARAVEL_API_URL` in `frontend/.env.local` if your backend URL differs from `http://127.0.0.1:8000/api`.
